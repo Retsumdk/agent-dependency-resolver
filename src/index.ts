@@ -1,51 +1,81 @@
-#!/usr/bin/env bun
-/**
- * agent-dependency-resolver - Smart dependency resolution for multi-agent systems, handling conflicting constraints and versioning
- * Built by Retsumdk
- */
+import { Resolver } from './resolver';
+import { Agent, Tool } from './types';
 
-import { Command } from "commander";
-import { existsSync, readFileSync } from "fs";
-import { join } from "path";
-
-interface Config {
-  apiKey?: string;
-  baseUrl: string;
-  timeout: number;
-  retries: number;
-}
-
-const DEFAULTS: Config = {
-  baseUrl: "https://api.example.com",
-  timeout: 30000,
-  retries: 3,
-};
-
-function loadConfig(): Config {
-  const cfgPath = join(process.cwd(), "config.json");
-  if (existsSync(cfgPath)) {
-    try {
-      return { ...DEFAULTS, ...JSON.parse(readFileSync(cfgPath, "utf-8")) };
-    } catch { /* ignore */ }
+// Example Data for demonstration
+const mockAgents: Agent[] = [
+  {
+    id: '1',
+    name: 'researcher',
+    version: '1.0.0',
+    dependencies: [
+      { name: 'web-search', version: '^1.0.0' },
+      { name: 'summarizer', version: '>=0.5.0' }
+    ]
+  },
+  {
+    id: '2',
+    name: 'summarizer',
+    version: '0.6.0',
+    dependencies: [
+      { name: 'nlp-core', version: '~1.2.0' }
+    ]
+  },
+  {
+    id: '3',
+    name: 'summarizer',
+    version: '0.5.0',
+    dependencies: [
+      { name: 'nlp-core', version: '1.1.0' }
+    ]
+  },
+  {
+    id: '4',
+    name: 'nlp-core',
+    version: '1.2.5',
+    dependencies: []
+  },
+  {
+    id: '5',
+    name: 'nlp-core',
+    version: '1.1.0',
+    dependencies: []
   }
-  return { ...DEFAULTS };
+];
+
+const mockTools: Tool[] = [
+  {
+    name: 'web-search',
+    version: '1.2.0',
+    capabilities: ['search', 'browse']
+  },
+  {
+    name: 'web-search',
+    version: '0.9.0',
+    capabilities: ['search']
+  }
+];
+
+function main() {
+  const args = process.argv.slice(2);
+  const targetAgent = args[0] || 'researcher';
+
+  console.log(`--- Agent Dependency Resolver ---`);
+  console.log(`Target: ${targetAgent}\n`);
+
+  const resolver = new Resolver(mockAgents, mockTools);
+  const result = resolver.resolve([targetAgent]);
+
+  console.log(resolver.formatResult(result));
+
+  if (result.success) {
+    console.log(`\nDependency Graph Structure:`);
+    result.graph.nodes.forEach(node => {
+      console.log(`[${node.type.toUpperCase()}] ${node.id}`);
+      node.edges.forEach(edge => {
+        console.log(`  └── depends on: ${edge}`);
+      });
+    });
+  }
 }
 
-async function main(cfg: Config) {
-  console.log(`[${name}] Connected to ${cfg.baseUrl}`);
-  console.log(`[${name}] Timeout: ${cfg.timeout}ms | Retries: ${cfg.retries}`);
-  // TODO: implement your logic here
-  console.log(`[${name}] Done.`);
-}
-
-const program = new Command();
-program.name("agent-dependency-resolver").description("Smart dependency resolution for multi-agent systems, handling conflicting constraints and versioning").version("1.0.0")
-  .option("-c, --config <path>", "Config file path", "config.json")
-  .option("-v, --verbose", "Verbose mode")
-  .action(async (opts) => {
-    const cfg = loadConfig();
-    if (opts.verbose) console.log("Verbose mode on");
-    try { await main(cfg); }
-    catch (e) { console.error(`Error: ${e}`); process.exit(1); }
-  });
-program.parse(process.argv);
+main();
